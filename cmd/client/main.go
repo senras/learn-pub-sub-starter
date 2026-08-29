@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
@@ -15,30 +16,34 @@ import (
 func main() {
 	fmt.Println("Starting Peril client...")
 	connection_str := "amqp://guest:guest@localhost:5672/"
+
 	conn, err := amqp.Dial(connection_str)
 	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ:", err)
-		return
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
 	defer conn.Close()
-	fmt.Println("Connected to RabbitMQ successfully.")
+	fmt.Println("Peril game client connected to RabbitMQ!")
+
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
-		fmt.Println("Failed to welcome client:", err)
-		return
+		log.Fatalf("Failed to welcome client: %v", err)
 	}
 
-	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, "pause."+username, routing.PauseKey, pubsub.SimpleQueueTypeTransient)
+	_, queue, err := pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilDirect,
+		routing.PauseKey+"."+username,
+		routing.PauseKey,
+		pubsub.SimpleQueueTypeTransient,
+	)
 	if err != nil {
-		fmt.Println("Failed to declare and bind queue:", err)
-		return
+		log.Fatalf("Failed to declare and bind queue: %v", err)
 	}
+	fmt.Printf("Queue %v declared and bound to Peril exchange with routing key %v\n", queue.Name, routing.PauseKey+"."+username)
 
-	// Create a channel to receive OS signals
+	// Wait for ctrl+c
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt)
-
-	// Wait for an interrupt signal
 	<-sigchan
 	fmt.Println("Shutting down Peril client	...")
 
