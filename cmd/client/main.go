@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -29,7 +27,7 @@ func main() {
 		log.Fatalf("Failed to welcome client: %v", err)
 	}
 
-	_, queue, err := pubsub.DeclareAndBind(
+	_, pause_queue, err := pubsub.DeclareAndBind(
 		conn,
 		routing.ExchangePerilDirect,
 		routing.PauseKey+"."+username,
@@ -39,12 +37,35 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to declare and bind queue: %v", err)
 	}
-	fmt.Printf("Queue %v declared and bound to Peril exchange with routing key %v\n", queue.Name, routing.PauseKey+"."+username)
+	fmt.Printf("Pause Queue %v declared and bound to Peril exchange with routing key %v\n", pause_queue.Name, routing.PauseKey+"."+username)
 
-	// Wait for ctrl+c
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, os.Interrupt)
-	<-sigchan
-	fmt.Println("Shutting down Peril client	...")
+	gameState := gamelogic.NewGameState(username)
+	for {
+		input := gamelogic.GetInput()
+		switch input[0] {
+		case "spawn":
+			gameState.CommandSpawn(input)
+		case "move":
+			gameState.CommandMove(input)
+			fmt.Printf("Command \"%s %s %s\" was successful", input[0], input[1], input[2])
+		case "status":
+			gameState.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			fmt.Println("Unknown command.")
+		}
+	}
+
+	/* 	// Wait for ctrl+c
+	   	sigchan := make(chan os.Signal, 1)
+	   	signal.Notify(sigchan, os.Interrupt)
+	   	<-sigchan
+	   	fmt.Println("Shutting down Peril client	...") */
 
 }

@@ -51,17 +51,19 @@ func main() {
 		input := gamelogic.GetInput()
 		if len(input) == 0 {
 			continue
-		} else if input[0] == "pause" {
+		}
+		switch input[0] {
+		case "pause":
 			fmt.Println("Sending a pause message..")
 			err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
-		} else if input[0] == "resume" {
+		case "resume":
 			fmt.Println("Sending a resume message..")
 			err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: false})
-		} else if input[0] == "quit" {
+		case "quit":
 			fmt.Println("Quitting the server...")
-			break
-		} else {
-			fmt.Println("Unknown command. Please try again.")
+			return
+		default:
+			fmt.Println("Unknown command. Please use 'pause', 'resume', or 'quit'.")
 		}
 	}
 
