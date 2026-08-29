@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 
@@ -45,5 +46,23 @@ func main() {
 	// Wait for an interrupt signal
 	<-sigchan
 	fmt.Println("Shutting down Peril server...")
+	gamelogic.PrintServerHelp()
+	for {
+		input := gamelogic.GetInput()
+		if len(input) == 0 {
+			continue
+		} else if input[0] == "pause" {
+			fmt.Println("Sending a pause message..")
+			err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
+		} else if input[0] == "resume" {
+			fmt.Println("Sending a resume message..")
+			err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: false})
+		} else if input[0] == "quit" {
+			fmt.Println("Quitting the server...")
+			break
+		} else {
+			fmt.Println("Unknown command. Please try again.")
+		}
+	}
 
 }
