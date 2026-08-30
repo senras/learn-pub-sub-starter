@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
+	"log"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -15,37 +14,31 @@ import (
 func main() {
 	fmt.Println("Starting Peril server...")
 	connection_str := "amqp://guest:guest@localhost:5672/"
+
 	conn, err := amqp.Dial(connection_str)
 	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ:", err)
-		return
+		log.Fatalf("Failed to connect to RabbitMQ: %s", err)
 	}
 	defer conn.Close()
 	fmt.Println("Connected to RabbitMQ successfully.")
 
 	channel, err := conn.Channel()
 	if err != nil {
-		fmt.Println("Failed to open a channel:", err)
-		return
+		log.Fatalf("Failed to open a channel: %s", err)
 	}
-	defer channel.Close()
-	fmt.Println("Channel opened successfully.")
 
-	err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
-		IsPaused: true,
-	})
+	_, queue, err := pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		"game_logs",
+		"game_logs.*",
+		pubsub.SimpleQueueTypeDurable,
+	)
 	if err != nil {
-		fmt.Println("Failed to publish JSON:", err)
-		return
+		log.Fatalf("Failed to declare and bind queue: %s", err)
 	}
+	fmt.Printf("Peril Topic Queue %v declared and bound to Peril exchange with routing key %v\n", queue.Name, "game_logs.*")
 
-	// Create a channel to receive OS signals
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, os.Interrupt)
-
-	// Wait for an interrupt signal
-	<-sigchan
-	fmt.Println("Shutting down Peril server...")
 	gamelogic.PrintServerHelp()
 	for {
 		input := gamelogic.GetInput()
