@@ -26,27 +26,31 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to welcome client: %v", err)
 	}
+	gameState := gamelogic.NewGameState(username)
 
-	_, pause_queue, err := pubsub.DeclareAndBind(
+	err = pubsub.SubscribeJSON[routing.PlayingState](
 		conn,
 		routing.ExchangePerilDirect,
 		routing.PauseKey+"."+username,
 		routing.PauseKey,
 		pubsub.SimpleQueueTypeTransient,
+		handlerPause(gameState),
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare and bind queue: %v", err)
 	}
-	fmt.Printf("Pause Queue %v declared and bound to Peril exchange with routing key %v\n", pause_queue.Name, routing.PauseKey+"."+username)
 
-	gameState := gamelogic.NewGameState(username)
 	for {
 		input := gamelogic.GetInput()
 		switch input[0] {
 		case "spawn":
 			gameState.CommandSpawn(input)
 		case "move":
-			gameState.CommandMove(input)
+			_, err := gameState.CommandMove(input)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
 			fmt.Printf("Command \"%s %s %s\" was successful", input[0], input[1], input[2])
 		case "status":
 			gameState.CommandStatus()
